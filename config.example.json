@@ -1,0 +1,25 @@
+{
+  "_说明": "复制成 config.json 后填写。或者直接运行 python scripts/notice_daily.py --init 自动生成。",
+
+  "smtp": {
+    "host": "smtp.qq.com",
+    "port": 465,
+    "user": "you@example.com",
+    "auth": "邮箱授权码，不是登录密码",
+    "to": "you@example.com"
+  },
+
+  "wecom_webhook": "",
+
+  "profile": {
+    "_说明": "全部留空 = 不做任何过滤。填了才会按你的情况筛选。",
+    "campus": "",
+    "college": "",
+    "cohort": 0,
+    "title": "",
+    "interests": [],
+    "housing": "",
+    "commute": "",
+    "grade": ""
+  }
+}

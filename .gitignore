@@ -1,0 +1,10 @@
+# 个人信息，绝对不要提交
+config.json
+pending.json
+
+# 运行产物
+reports/
+atm_cache/
+__pycache__/
+*.pyc
+.DS_Store
