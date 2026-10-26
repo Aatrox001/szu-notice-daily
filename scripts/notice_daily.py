@@ -746,6 +746,12 @@ def drop_reason(item, level):
     for kw in DROP_BY_LEVEL.get(level, []):
         if kw in title:
             return "非本阶段:" + kw
+    # 标题点名了别的学段（且没同时提到自己的学段）→ 不关你的事。
+    # 例：「本科生"荔园之星"评选」丢掉；「研究生和本科生均可参加」保留。
+    other = {"pg": "本科生", "ug": "研究生", "phd": "本科生"}.get(level)
+    mine = {"pg": "研究生", "ug": "本科生", "phd": "博士"}.get(level)
+    if other and other in title and mine not in title:
+        return "非本阶段:" + other
     return None
 
 
