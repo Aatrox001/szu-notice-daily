@@ -428,7 +428,7 @@ def extract_fields(text, atts=None):
         for p in pats:
             m = re.search(p, flat)
             if m:
-                v = _clean_field((m.group(1) or ""), label)
+                v = _clean_field((m.group(1) if m.groups() else m.group(0)) or "", label)
                 if len(v) < 2:
                     continue
                 sig = v[:8]
