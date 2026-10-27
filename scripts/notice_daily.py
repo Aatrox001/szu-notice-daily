@@ -1338,7 +1338,9 @@ def render_text(rows, today, wd, stats, args, pend=None):
     say = out.append
     pend = pend or {}
     c = _counts(rows)
-    head = " · ".join("%s %d" % (SHORT_NAME[k], c[k]) for k in ORDER if c[k])
+    # 分区计数只在「有多个区块」时才有信息量；只有一个区块时是噪音（STYLE.md 第 5 节：头部一行数字）
+    chips = [(SHORT_NAME[k], c[k]) for k in ORDER if c[k]]
+    head = " · ".join("%s %d" % (n, v) for n, v in chips) if len(chips) > 1 else ""
 
     say("# 公文通日报 %d月%d日 周%s" % (today.month, today.day, wd))
     say("")
