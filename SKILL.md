@@ -5,7 +5,7 @@ display_name_en: SZU Notice Daily Digest
 description: 把深圳大学公文通里跟你有关的事筛出来，每天发一封中文邮件，不用点链接也能看清时间、地点、截止和要交的材料。依赖 szu-cli 的登录态抓取，只在本机运行。用户只需填写一次邮箱授权码即可收到日报。
 description_zh: 自动读取深圳大学公文通，过滤答辩公告、新闻稿、无关讲座等噪音，只保留会影响你的通知，每天早上发到邮箱。每条自带时间、地点、截止、材料清单和人话解释，不用点链接登录也能看懂。
 description_en: Reads Shenzhen University bulletin notices daily, filters out noise, and emails only the items that matter, with time, place, deadline, required materials, and a plain-language explanation included in the email itself.
-version: 1.0.0
+version: 1.1.0
 author: szu-notice-daily contributors
 license: MIT
 metadata:
@@ -126,6 +126,10 @@ crontab -e
 - 不保存密码、Cookie、浏览器 profile
 - 不上传任何数据到第三方服务器（邮件直连你自己的发信服务器）
 - 不批量下载附件（每次最多 4 篇）
+
+**写作与判定标准固定在 [STYLE.md](STYLE.md)。**
+改内容风格（阈值、容量、语气、取舍）必须先改那份文件，再动代码——
+否则今天收紧、明天放宽，读者会发现这份日报越来越像公文通。
 
 ## 六、隐私
 
