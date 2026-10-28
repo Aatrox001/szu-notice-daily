@@ -32,6 +32,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import date
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -302,8 +303,20 @@ def resolve_cli():
     shim = shutil.which("szu-cli")
     if shim:
         roots.append(os.path.dirname(shim))
+    # 计划任务等环境下 PATH 往往不含 npm/wb 的目录，补一次已知位置
+    base = os.path.join(os.path.expanduser("~"), ".workbuddy", "binaries", "node", "versions")
+    if os.path.isdir(base):
+        roots += [os.path.join(base, d) for d in os.listdir(base)]
 
-    node = shutil.which("node") or "node"
+    # node 也可能不在 PATH 里；node.exe 通常和 node_modules 同目录，兜底找一下
+    node = shutil.which("node")
+    if not node:
+        for r in roots:
+            cand = os.path.join(r, "node.exe")
+            if os.path.isfile(cand):
+                node = cand
+                break
+    node = node or "node"
     for r in roots:
         js = os.path.join(r, "node_modules", "szu-cli", "src", "cli.js")
         if os.path.isfile(js):
@@ -1140,9 +1153,20 @@ def main():
     prof = load_profile()
 
     # 两个时间窗：短期看环境待办，长期看就业机会（招聘会提前一周发）
+    def _fetch():
+        return (
+            run_cli(["notice", "search", "--range", args.range, "--limit", "100"]).get("items", []),
+            run_cli(["notice", "search", "--range", args.wide, "--limit", "100"]).get("items", []),
+        )
+
     try:
-        recent = run_cli(["notice", "search", "--range", args.range, "--limit", "100"]).get("items", [])
-        wide = run_cli(["notice", "search", "--range", args.wide, "--limit", "100"]).get("items", [])
+        try:
+            recent, wide = _fetch()
+        except SystemExit as e:
+            # 计划任务刚开机时网络常常还没就绪，等一下重试一次，别直接丢掉今天的日报
+            print("[重试] 首次抓取失败：%s；90 秒后重试。" % (e,))
+            time.sleep(90)
+            recent, wide = _fetch()
     except SystemExit as e:
         # 抓取失败也要让你知道，不能让日报悄悄消失
         if args.email and not os.path.isfile(_alert_marker(date.today())):
@@ -1282,7 +1306,9 @@ def main():
 
 
 def _counts(rows):
-    return {k: len(v) for k, v in rows.items()}
+    """只数「今天新增、会真的出现在正文里」的条目，避免出现
+    「头部写 机会 2、正文却没有这个区块」的自相矛盾。"""
+    return {k: len([r for r in v if r.get("is_new", True)]) for k, v in rows.items()}
 
 
 def verdict(rows, pend):
@@ -1731,5 +1757,72 @@ def _do_push(text, args):
     print("\n[推送] %s" % ("成功：" + msg if ok else "失败：" + msg))
 
 
+def _start_run_log():
+    """无人值守运行时留日志：计划任务里出的错，事后必须能查。
+    写 <BASE_DIR>/reports/run-YYYY-MM-DD.log，同时保留控制台输出。"""
+    from datetime import datetime
+    d = os.path.join(BASE_DIR, "reports")
+    os.makedirs(d, exist_ok=True)
+
+    # 顺手清掉 30 天前的运行日志
+    cutoff = datetime.now().timestamp() - 30 * 86400
+    try:
+        for name in os.listdir(d):
+            if name.startswith("run-") and name.endswith(".log"):
+                p = os.path.join(d, name)
+                if os.path.getmtime(p) < cutoff:
+                    os.remove(p)
+    except Exception:
+        pass
+
+    f = open(os.path.join(d, "run-%s.log" % date.today().isoformat()), "a", encoding="utf-8")
+
+    class _Tee(object):
+        def __init__(self, *streams):
+            self.streams = streams
+
+        def write(self, s):
+            for st in self.streams:
+                try:
+                    st.write(s)
+                except Exception:
+                    pass
+            return len(s)
+
+        def flush(self):
+            for st in self.streams:
+                try:
+                    st.flush()
+                except Exception:
+                    pass
+
+        def __getattr__(self, name):
+            return getattr(self.streams[0], name)
+
+    sys.stdout = _Tee(sys.__stdout__, f)
+    sys.stderr = _Tee(sys.__stderr__, f)
+    print("\n%s | 启动: %s" % (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                              " ".join(sys.argv[1:]) or "(无参数)"))
+    return f
+
+
 if __name__ == "__main__":
-    main()
+    _log = _start_run_log()
+    try:
+        main()
+    except SystemExit as e:
+        # 把失败原因写进日志，别让计划任务只留下一个「返回码 1」
+        if e.code not in (0, None):
+            print("[退出] 失败：%s" % (e.code,))
+            _log.flush()
+        raise
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        _log.flush()
+        raise
+    finally:
+        try:
+            _log.close()
+        except Exception:
+            pass
